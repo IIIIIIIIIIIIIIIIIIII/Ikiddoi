@@ -1,0 +1,250 @@
+package main;
+ 
+import org.dreambot.api.input.event.impl.InteractionEvent;
+import org.dreambot.api.methods.Calculations;
+import org.dreambot.api.methods.map.Area;
+import org.dreambot.api.methods.map.Tile;
+import org.dreambot.api.methods.skills.Skill;
+import org.dreambot.api.script.AbstractScript;
+import org.dreambot.api.script.Category;
+import org.dreambot.api.script.ScriptManifest;
+import org.dreambot.api.utilities.Timer;
+import org.dreambot.api.wrappers.interactive.GameObject;
+import org.dreambot.api.wrappers.interactive.NPC;
+import sun.rmi.runtime.Log;
+ 
+import java.awt.*;
+ 
+@ScriptManifest(
+        author = "Dagwood",
+        name = "Thieving3",
+        version = 1.0D,
+        category = Category.THIEVING,
+        description = "Thieves for you."
+)
+ 
+public class main extends AbstractScript {
+    private Timer timeRan;
+ 
+    Area stalls = new Area(3269, 3412, 3268, 3412);
+    Area lumbridge = new Area(3217, 3226, 3225, 3213);
+    Area lever = new Area(3090, 3475, 3092, 3474);
+    Area deathsq = new Area(3153, 3925, 3156, 3922);
+    Area Ardy = new Area(2678, 3328, 3559, 3277 );
+    Area ardylever = new Area(2561, 3312, 3562, 3310);
+    //Area Ardy_Square = new Area(2650, 3318, 2673, 3294);
+    Area CakeStall = new Area(2662, 3309, 2672, 3313);
+    Area safespot = new Area(2673, 3321, 2674, 3312);
+    Area attack = new Area(2667, 3313, 2669, 3312);
+    Area Silk = new Area(2662, 3317, 2664, 3316);
+    Area safespot2 = new Area(2652, 3320, 2650, 3316);
+    Area SilkStallArea = new Area(2660, 3317, 2667, 3312);
+ 
+    String[] food = {"Cake","half cake", "whatever cake is called", "shrimp", "any food u want"};
+ 
+    private boolean DoneTea = false;
+ 
+    private enum State {
+        Pickman, Stall, Gettoardy, CakeStall, Silk, RunAway, Eat
+    }
+ 
+    public State getState() {
+        if (getInventory().contains(food) && getLocalPlayer().getHealthPercent() < 40) {
+            return State.Eat;
+        }
+        if (getLocalPlayer().isInCombat() || getLocalPlayer().isHealthBarVisible()) {
+            return State.RunAway;
+        }
+        if (getSkills().getRealLevel(Skill.THIEVING) >= 99 && !getLocalPlayer().isInCombat()) {
+            return State.Silk;
+        }
+        if (getInventory().contains(food) && getLocalPlayer().getHealthPercent() < 40) {
+            return State.Eat;
+        }
+        if (getLocalPlayer().isInCombat() || getLocalPlayer().isHealthBarVisible()) {
+            return State.RunAway;
+        }
+        if (getSkills().getRealLevel(Skill.THIEVING) >= 15 && !getLocalPlayer().isInCombat()) {
+            log("lvl 15+");
+            return State.Gettoardy;
+        }
+        if (getSkills().getRealLevel(Skill.THIEVING)>= 5 && !getLocalPlayer().isInCombat()) {
+            log("lvl 5+");
+            return State.Stall;
+        }
+        if (getSkills().getRealLevel(Skill.THIEVING) < 5 && !getLocalPlayer().isInCombat()) {
+            log("nuub");
+            return State.Pickman;
+        }
+        return null;
+    }
+ 
+ 
+ 
+ 
+ 
+ 
+    @Override
+    public void onStart() {
+        timeRan = new Timer();
+        super.onStart();
+    }
+ 
+    @Override
+    public int onLoop() {
+        sleep(200);
+ 
+ 
+        switch (getState()) {
+ 
+            case Eat:
+                eatFood();
+                break;
+            case RunAway:
+                underAttack();
+                break;
+            case Pickman:
+                Pickpocketman();
+                break;
+            case Stall:
+                Theestall();
+                break;
+            case Gettoardy:
+                Getardy();
+                break;
+            case CakeStall:
+                CakeStall();
+                break;
+            case Silk:
+                silk();
+                break;
+ 
+        }
+        return 0;
+    }
+ 
+    private void eatFood() {
+        if (getInventory().contains(food)) {
+            getInventory().get(food).interact("Eat");
+        }
+    }
+ 
+    private void Pickpocketman() {
+        NPC npcman = getNpcs().closest("Man");
+        if (!getLocalPlayer().isHealthBarVisible()) {
+            if (lumbridge.contains(npcman)) {
+                npcman.interact("Pickpocket");
+                sleep(Calculations.random(612, 846));
+                if (!getLocalPlayer().isHealthBarVisible()) {
+                    sleepUntil(() -> getLocalPlayer().isAnimating(), Calculations.random(5000, 8000));
+                    sleepUntil(() -> !getLocalPlayer().isAnimating(), Calculations.random(5000, 8000));
+                }
+            } else {
+                if (!lumbridge.contains(npcman)) {
+                    sleep(Calculations.random(153, 198));
+                }
+            }
+        }
+    }
+ 
+    private void Theestall() {
+        if (!stalls.contains(getLocalPlayer())) {
+            getWalking().walk(stalls.getRandomTile());
+        } else {
+            if (stalls.contains(getLocalPlayer())) {
+                if (getInventory().contains("Cup of tea")) {
+                    getInventory().dropAll("Cup of tea");
+                    sleep(Calculations.random(315, 800));
+                } else {    GameObject tea = getGameObjects().closest("Tea stall");
+                    if (tea != null) {
+                        tea.interact("Steal-from");
+                        sleepUntil(() -> getLocalPlayer().isAnimating(), Calculations.random(5000, 8000));
+                        sleepUntil(() -> !getLocalPlayer().isAnimating(), Calculations.random(5000, 8000));
+                    }
+                }
+            }
+        }
+    }
+ 
+    private void Getardy() {
+        if (lever.contains(getLocalPlayer())) {
+            log("6");
+            GameObject lever = getGameObjects().closest("Lever");
+            lever.interact("Pull");
+            sleepUntil(() -> getDialogues().canContinue(), Calculations.random(6000, 9000));
+            if (getDialogues().canContinue()) {
+                log("7");
+                getDialogues().spaceToContinue();
+                sleep(Calculations.random(1000, 1200));
+                getDialogues().chooseOption(3);
+                sleepUntil(() -> deathsq.contains(getLocalPlayer()), Calculations.random(8000, 12000));
+                if (deathsq.contains(getLocalPlayer())) {
+                    log("8");
+                    lever.interact("Pull");
+                }
+            }
+        } else {
+            log("9");
+            if (deathsq.contains(getLocalPlayer())) {
+                log("10");
+                GameObject lever = getGameObjects().closest("Lever");
+                lever.interact("Pull");
+                sleep(8000);
+            }
+            log("11");
+            getWalking().walk(CakeStall.getRandomTile());
+        }
+    }
+ 
+    private void CakeStall(){
+        if (getGameObjects().closest("Baker's stall") !=null) {
+            GameObject Bakers_stall = getGameObjects().getTopObjectOnTile(new Tile(2667,3310));
+        if (Bakers_stall !=  null && Bakers_stall.isOnScreen() && Bakers_stall.hasAction("Steal-from")) {
+                sleepUntil(() -> Bakers_stall.interactForceLeft("Steal-from"), 3000);
+                sleep(800);
+                if (getInventory().contains(n -> n.getName() =="Cake, Chocolate Slice, Chocolate Bar, Bread" && n.getAmount() > 8) || getInventory().isFull()){
+                    getInventory().dropAll("Cake, Chocolate Slice, Chocolate Bar, Bread");
+                }
+ 
+ 
+            }
+        }
+    }
+ 
+    private void silk() {
+        log("12");
+        if (getGameObjects().closest("Silk stall") != null) {
+            GameObject silk_stall = getGameObjects().getTopObjectOnTile(new Tile(2662,3314));
+            if (silk_stall !=  null && silk_stall.isOnScreen() && silk_stall.hasAction("Steal-from")) {
+                sleepUntil(() -> silk_stall.interactForceLeft("Steal-from"), 3000);
+                sleep(800);
+                if (getInventory().contains(n -> n.getName() =="Silk" && n.getAmount() > 8) || getInventory().isFull()){
+                    getInventory().dropAll("Silk");
+                }
+ 
+ 
+            }
+        }
+    }
+ 
+    private void underAttack() {
+        if (getLocalPlayer().isInCombat() || getLocalPlayer().isHealthBarVisible()) {
+            if (getGameObjects().closest("Silk stall") !=null) {
+                sleepUntil(() -> getWalking().walk(safespot2.getRandomTile()),3000);
+                sleepUntil(() -> !getLocalPlayer().isMoving(),3000);
+            } else if (getGameObjects().closest("Bakers stall") !=null) {
+                sleepUntil(() -> getWalking().walk(safespot.getRandomTile()),3000);
+                sleepUntil(() -> !getLocalPlayer().isMoving(),3000);
+            }
+        }
+    }
+ 
+ 
+ 
+ 
+    public void onPaint(Graphics g) {
+        g.drawString("Time ran: " + timeRan.formatTime(), 15, 260);
+    }
+ 
+ 
+}
