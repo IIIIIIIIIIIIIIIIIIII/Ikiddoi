@@ -1,0 +1,164 @@
+import org.dreambot.api.methods.Calculations;
+import org.dreambot.api.methods.container.impl.bank.BankLocation;
+import org.dreambot.api.methods.filter.Filter;
+import org.dreambot.api.methods.map.Area;
+import org.dreambot.api.methods.map.Tile;
+import org.dreambot.api.script.AbstractScript;
+import org.dreambot.api.script.Category;
+import org.dreambot.api.script.ScriptManifest;
+import org.dreambot.api.utilities.impl.Condition;
+import org.dreambot.api.wrappers.interactive.GameObject;
+
+@ScriptManifest(author = "IkiddoI", name = "IwheatpickerI", version = 1.6, description = "pickes up wheat and stores in bank", category = Category.MONEYMAKING)
+public class IwheatpickerI extends AbstractScript {
+
+
+    private final Area WHEAT_AREA = new Area(3152, 3307, 3166, 3288);
+    private final Area BANK_AREA = new Area(3087, 3246, 3098, 3239);
+
+    private final Tile IN_FRONT_OF_GATE = new Tile(3163, 3289, 0);
+    private final Tile INSIDE_GATE = new Tile(3162, 3291, 0);
+
+    private final Tile WINDMILL_STAIRS = new Tile(3165, 3305, 0);
+    private final Tile TOP_STAIRS = new Tile(3165, 3306, 2);
+
+    GameObject Grain;
+
+    private State state;
+
+    @Override
+    public void onExit() {
+        super.onExit();
+    }
+
+    private enum State {
+        BANK, WALK_TO_BANK, WALK_TO_WHEAT, PICK_UP;
+    }
+
+    private State getState() {
+        if (getInventory().isFull()) {
+            if (BANK_AREA.contains(getLocalPlayer())) {
+                return State.BANK;
+            } else {
+                return State.WALK_TO_BANK;
+            }
+        } else {
+            if (WHEAT_AREA.contains(getLocalPlayer())) {
+                return State.PICK_UP;
+            } else {
+                return State.WALK_TO_WHEAT;
+            }
+        }
+    }
+
+
+    @Override
+    public int onLoop() {
+        if (getLocalPlayer().isMoving()) {
+            Tile dest = getClient().getDestination();
+            if (dest != null && getLocalPlayer().getTile().distance(dest) > 5) {
+                return Calculations.random(200, 400);
+            }
+        }
+        //we should add a run energy check too! see all the fun things we think of
+        if (!getWalking().isRunEnabled() && getWalking().getRunEnergy() > 70) {
+            getWalking().toggleRun();
+        }
+        state = getState();
+        switch (state) {
+            case BANK: {
+                if (getBank().isOpen()) {
+                    getBank().depositAllItems();
+                    getBank().withdraw("Pot", 14);
+                    Calculations.random(400, 1200);
+                    getBank().withdraw("Grain", 14);
+                    sleepUntil(new Condition() {
+                        public boolean verify() {
+                            return getInventory().isEmpty();
+                        }
+                    }, Calculations.random(900, 1200));
+                } else {
+                    getBank().open();
+                    sleepUntil(new Condition() {
+                        public boolean verify() {
+                            return getBank().isOpen();
+                        }
+                    }, Calculations.random(900, 1200));
+                }
+            }
+            break;
+
+            case PICK_UP: {
+                if (!getInventory().isFull()) {
+                    if (WHEAT_AREA.contains(getLocalPlayer())) {
+                        Grain = getGameObjects().closest(c -> c != null && c.getName().equals("Wheat") && c.hasAction("Pick"));
+                        Grain.interact("Pick");
+                        sleepUntil(() -> getLocalPlayer().getAnimation() == 827, Calculations.random(1429, 2845));
+                        sleep(Calculations.random(300, 600));
+                    } else {
+                        getWalking().walk(WHEAT_AREA.getRandomTile());
+                        sleep(Calculations.random(1627, 2482));
+                    }
+                }
+            }
+            break;
+
+            case WALK_TO_BANK: {
+                getWalking().walk(BankLocation.DRAYNOR.getCenter());
+                    if (WHEAT_AREA.contains(getLocalPlayer())) {
+                        final GameObject gate = getGameObjects().closest(new Filter<GameObject>() {
+                            public boolean match(GameObject go) {
+                                if (go == null || go.getName() == null)
+                                    return false;
+                                if (!go.getName().equals("Gate"))
+                                    return false;
+                                if (!go.getTile().equals(new Tile(3163, 3290, 0)))
+                                    return false;
+                                return true;
+                            }
+                        });
+                        if (gate != null) {
+                            if (gate.interact("Open")) {
+                                sleepUntil(new Condition() {
+                                    public boolean verify() {
+                                        return !gate.exists();
+                                    }
+                                }, Calculations.random(1800, 2400));
+                            }
+                        }
+                }
+            }
+            break;
+
+            case WALK_TO_WHEAT: {
+                if (getLocalPlayer().getTile().distance(IN_FRONT_OF_GATE) > 6) {
+                    getWalking().walk(IN_FRONT_OF_GATE);
+                } else {
+                    final GameObject gate = getGameObjects().closest(new Filter<GameObject>() {
+                        public boolean match(GameObject go) {
+                            if (go == null || go.getName() == null)
+                                return false;
+                            if (!go.getName().equals("Gate"))
+                                return false;
+                            if (!go.getTile().equals(new Tile(3163, 3290, 0)))
+                                return false;
+                            return true;
+                        }
+                    });
+                    if (gate != null) {
+                        if (gate.interact("Open")) {
+                            sleepUntil(new Condition() {
+                                public boolean verify() {
+                                    return !gate.exists();
+                                }
+                            }, Calculations.random(1800, 2400));
+                        }
+                    }
+                }
+                break;
+            }
+
+        }return Calculations.random(200, 400);
+    }
+}
+
