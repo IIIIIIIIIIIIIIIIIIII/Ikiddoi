@@ -1,8 +1,8 @@
-package IfishkiddoI;
 
 import org.dreambot.api.methods.Calculations;
 import org.dreambot.api.methods.container.impl.Inventory;
 import org.dreambot.api.methods.container.impl.bank.Bank;
+import org.dreambot.api.methods.container.impl.bank.BankLocation;
 import org.dreambot.api.methods.interactive.NPCs;
 import org.dreambot.api.methods.map.Area;
 import org.dreambot.api.methods.map.Tile;
@@ -10,22 +10,27 @@ import org.dreambot.api.methods.skills.Skill;
 import org.dreambot.api.script.AbstractScript;
 import org.dreambot.api.script.Category;
 import org.dreambot.api.script.ScriptManifest;
+import org.dreambot.api.utilities.Timer;
 import org.dreambot.api.utilities.impl.Condition;
 import org.dreambot.api.wrappers.interactive.NPC;
 
-import javax.swing.plaf.nimbus.State;
 
 import java.awt.*;
+import java.util.Random;
 
 import static org.dreambot.api.methods.skills.Skill.values;
 
-@ScriptManifest(category = Category.FISHING, name = "IFishKiddoI", author = "IkiddoI", version = 1.0, description = "free ez bank")
+@ScriptManifest(category = Category.FISHING, name = "IFishKiddoI", author = "IkiddoI", version = 1.7, description = "fishes fish at barb village gets you ez 99 fishing")
 public class Main extends AbstractScript{
 
+    Timer t = new Timer();
     private State state;
-    private final Area BANK_AREA = new Area(new Tile(3098, 3500), new Tile(3090, 3500), new Tile(3090, 3487), new Tile(3098, 3487), new Tile(3099, 3487));
+    Area BANK_AREA = new Area(3090, 3499, 3099, 3488);
     private final Area LOOT_AREA = new Area(3100, 3422, 3109, 3434, 0);
     private final Tile lootTile = new Tile(3109,3432,0);
+    Random rand = new Random();
+    int  n = rand.nextInt(Integer.MAX_VALUE / 20)/5 + 50;
+
 
 
     private enum State {
@@ -34,16 +39,13 @@ public class Main extends AbstractScript{
 
     @Override
     public void onStart() {
-        for (Skill s : values()) { //Start all skill trackers.
-            getSkillTracker().start(s, !getClient().getInstance().getScriptManager().isRunning());
             log("Welcome to your simple fisher by IkiddoI");
-            log("if you experience any issues while running this script please report them to me on the forums, maybe im gonna fix them");
+            log("if you experience any issues while running this script please report them to me on the forums, im gonna fix them");
             log("Enjoy the script, IFishKiddoI");
             log("cogito ergo sum!");
         }
-    }
+
     private State getState() {
-        //if your inventory is full, you should either be walking to the bank or banking
         if (getInventory().isFull()) {
             if (BANK_AREA.contains(getLocalPlayer())) {
                 return State.BANK;
@@ -51,7 +53,6 @@ public class Main extends AbstractScript{
                 return State.WALK_TO_BANK;
             }
         } else {
-            //if it isn't full, you'll want to either be picking up hides or walking to the cows
             if (LOOT_AREA.contains(getLocalPlayer())) {
                 return State.FISH;
             } else {
@@ -60,87 +61,78 @@ public class Main extends AbstractScript{
         }
     }
 
-    private void walkingSleep(){
-        sleepUntil(new Condition(){
-            public boolean verify(){
-                return getLocalPlayer().isMoving();
-            }
-        }, Calculations.random(1200,1600));
-        sleepUntil(new Condition(){
-            public boolean verify(){
-                return !getLocalPlayer().isMoving();
-            }
-        },Calculations.random(2400,3600));
-    }
-
-
-
     @Override
     public int onLoop() {
-
         if (getLocalPlayer().isMoving()) {
             Tile dest = getClient().getDestination();
-            if (dest != null && getLocalPlayer().getTile().distance(dest) > 1) {
+            if (dest != null && getLocalPlayer().getTile().distance(dest) > 5) {
                 return Calculations.random(100, 250);
             }
         }
-        if (!getWalking().isRunEnabled() && getWalking().getRunEnergy() > 70) {
+        if (!getWalking().isRunEnabled() && getWalking().getRunEnergy() >= Calculations.random(50, 100)) {
             getWalking().toggleRun();
         }
 
+        state = getState();
         switch (state) {
-            case BANK:
-
-            {
-
+            case BANK: {
                 if (getBank().isOpen()) {
+                    getBank().depositAllItems();
+                    if(!getInventory().contains("Feather", "Fly fishing rod"));
+                    getBank().withdraw("Fly fishing rod", 1);
+                    sleep(800);
+                    getBank().withdrawAll("Feather");
+                    sleep(800);
                     sleepUntil(new Condition() {
                         public boolean verify() {
-                            return true;
+                         return getInventory().contains("Feather", "Fly fishing rod");
                         }
                     }, Calculations.random(900, 1200));
-                    //this sleepUntil will sleep until your inventory is empty.
                 } else {
-                    //if it isn't open, open it!
                     getBank().open();
-
-                    //now we get into our first sleepUntil, this takes a Condition and a timeout as arguments
-                    //a Condition is an object that has a verify method, when it returns true the sleepUntil cuts out
-                    //or it'll wait until you reach the timeout
                     sleepUntil(new Condition() {
                         public boolean verify() {
-
-                            if(getBank().depositAllExcept(item -> item != null && item.getName().contains("Rod"));
                             return getBank().isOpen();
                         }
                     }, Calculations.random(900, 1200));
-                    //so in that condition we set it to go until the bank is open, or 900-1200 milliseconds has passed
                 }
-                //the reak statement is required after each case otherwise it'll spill over into the next
-                //this says to break out of your switch/case and to not continue on to the others.
-                break;
             }
-            case FISH: {
-                NPC spot = getNpcs().closest("Fishing spot");
-                if (spot != null) {
-                    spot.interact("Lure");
+            break;
+
+            case FISH: {//nog fixen
+                NPC fishingSpot = getNpcs().closest("Fishing spot");
+                if (fishingSpot != null && fishingSpot.isOnScreen())
+                    fishingSpot.interact("Lure");
+                sleep(16000, 25000);
+                if (!getLocalPlayer().isInteracting(fishingSpot)) {
+                    fishingSpot.interact("Lure");
+                    if (getLocalPlayer().distance(fishingSpot) > 3) {
+                        getWalking().walk(fishingSpot);
+                    } else getCamera().rotateToEntity(getGameObjects().closest("spot"));
+
                 }
             }
             break;
 
             case WALK_TO_BANK:
             {
-                if (!LOOT_AREA.contains(getLocalPlayer())) {
-                }
+                getWalking().walk(BankLocation.EDGEVILLE.getCenter());
+                Calculations.random(2400, 2800);
+                getBank().openClosest();
                 break;
             }
+
             case WALK_TO_FISH:
-                if (!LOOT_AREA.contains(getLocalPlayer())) {
+                if (!LOOT_AREA.contains((getLocalPlayer()))){
                     getWalking().walk(lootTile);
+                    Calculations.random(200, 400);
                 }
                 break;
-    } return Calculations.random(200, 400);
-}
+        }
+        return Calculations.random(200, 400);
+
+    }
+
 
     @Override
     public void onExit() {
@@ -148,9 +140,8 @@ public class Main extends AbstractScript{
     }
 
     public void onPaint(Graphics g) {
-
+        g.drawString("Time ran: " + t.formatTime(), 8, 335);
     }
 
 
 }
-
