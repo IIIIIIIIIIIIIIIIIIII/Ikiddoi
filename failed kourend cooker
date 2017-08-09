@@ -1,0 +1,49 @@
+import org.dreambot.api.methods.Calculations;
+import org.dreambot.api.methods.map.Area;
+import org.dreambot.api.script.AbstractScript;
+import org.dreambot.api.script.Category;
+import org.dreambot.api.script.ScriptManifest;
+import org.dreambot.api.utilities.Timer;
+
+import java.awt.*;
+
+@ScriptManifest(category = Category.COOKING, name = "IKourendCookerI", description = "Cooks food in Kourend.", author = "IkiddoI", version = 1.0)
+public class Main extends AbstractScript {
+
+    private static final Area RANGE_AREA = new Area();
+    private static final Area BANK_AREA = new Area();
+    Timer t = new Timer();
+    private State state;
+
+    private enum State {
+        WALKING_TO_RANGE, COOKING_FOOD, WALKING_TO_BANK, BANKING
+    }
+
+    private State getState() {
+
+        if (getInventory().contains("Raw monkfish")) {
+                return State.COOKING_FOOD;
+            } else {
+                return State.WALKING_TO_RANGE;
+            }
+        } else {
+            if (!FIRE_AREA.contains(getLocalPlayer())) {
+                return State.WALK_TO_SPOTS;
+                Calculations.random(6000, 16000);
+            } else (FIRE_AREA.contains(getLocalPlayer())) {
+                return State.LIGHT;
+            }
+        }
+    }
+
+
+    @Override
+    public int onLoop() {
+        return 0;
+    }
+
+    public void onPaint(Graphics g) {
+        g.drawString("Time ran: " + t.formatTime(), 8, 335);
+    }
+}
+
